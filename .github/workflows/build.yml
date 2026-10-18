@@ -1,13 +1,31 @@
-name: Build JIDU6J11 v8
+name: Build JIDU6J11 snapshot
 
 on:
+  push:
+    branches: ['firmware/**']
   workflow_dispatch:
     inputs:
-      variant:
-        description: Which image(s) to build
+      device:
+        description: Router SKU (6111 for JIDU6111)
         type: choice
-        options: [both, unifi, stock]
-        default: both
+        options: ['6111', '6411', both]
+        default: '6111'
+      variant:
+        description: Standard router or UniFi/openUF AP
+        type: choice
+        options: [stock, unifi, both]
+        default: stock
+      openwrt_ref:
+        description: OpenWrt branch or commit (main = latest snapshot; pinned = validated revision)
+        type: string
+        default: main
+      check_only:
+        description: Only validate patches, configuration and host prerequisites
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -16,7 +34,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        variant: ${{ fromJSON(inputs.variant == 'both' && '["unifi","stock"]' || format('["{0}"]', inputs.variant)) }}
+        variant: ${{ fromJSON(inputs.variant == 'both' && '["unifi","stock"]' || format('["{0}"]', inputs.variant || 'stock')) }}
+    env:
+      DEVICE: ${{ inputs.device || '6111' }}
+      VARIANT: ${{ matrix.variant }}
+      OPENWRT_REF: ${{ inputs.openwrt_ref || 'main' }}
+      CHECK_ONLY: ${{ inputs.check_only && '1' || '0' }}
+      JOBS: '2'
     steps:
       - uses: actions/checkout@v5
 
@@ -33,22 +57,37 @@ jobs:
             g++-multilib gettext git libncurses-dev libssl-dev python3-setuptools \
             python3-dev rsync swig unzip zlib1g-dev file wget zstd
 
-      - name: Build (${{ matrix.variant }})
-        env:
-          VARIANT: ${{ matrix.variant }}
-        run: bash ./build.sh
+      - name: Test artifact verification
+        run: python3 -m unittest discover -s tests -v
 
-      - name: Upload firmware
+      - name: Build and verify firmware
+        shell: bash
+        run: |
+          if [ "$OPENWRT_REF" = pinned ]; then
+            export OPENWRT_REF="$(cat openwrt.pin)"
+          fi
+          bash ./build.sh
+
+      - name: Upload verified firmware
+        if: success() && inputs.check_only != true
         uses: actions/upload-artifact@v5
         with:
-          name: jidu6411-v8-${{ matrix.variant }}
-          path: out/${{ matrix.variant }}
+          name: jidu${{ env.DEVICE }}-snapshot-${{ matrix.variant }}-${{ github.run_number }}
+          path: out/${{ env.DEVICE }}/${{ matrix.variant }}/
+          if-no-files-found: error
           retention-days: 30
 
-      - name: Upload build log on failure
-        if: failure()
+      - name: Upload build diagnostics
+        if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: logs-${{ matrix.variant }}
-          path: work-${{ matrix.variant }}/openwrt/logs
-          if-no-files-found: ignore
+          name: diagnostics-jidu${{ env.DEVICE }}-${{ matrix.variant }}-${{ github.run_number }}
+          path: |
+            work-${{ env.DEVICE }}-${{ matrix.variant }}/build.log
+            work-${{ env.DEVICE }}-${{ matrix.variant }}/defconfig.log
+            work-${{ env.DEVICE }}-${{ matrix.variant }}/openwrt-base.commit
+            work-${{ env.DEVICE }}-${{ matrix.variant }}/build-provenance.txt
+            work-${{ env.DEVICE }}-${{ matrix.variant }}/openwrt/.config
+            work-${{ env.DEVICE }}-${{ matrix.variant }}/openwrt/logs/
+          include-hidden-files: true
+          if-no-files-found: warn

@@ -1,8 +1,7 @@
-From 538b505ff2cfc1fd5b755a816eea3e946684efc3 Mon Sep 17 00:00:00 2001
+From baf9b9f124e26798cad5ebaf93237ea525c54654 Mon Sep 17 00:00:00 2001
 From: Sandeep Sondagar <sandeepsondagar@gmail.com>
 Date: Fri, 7 Aug 2026 12:54:21 +0530
-Subject: [PATCH 1/5] ath11k-firmware: add IPQ9574 board data and firmware
- package
+Subject: [PATCH] ath11k-firmware: add IPQ9574 board data and firmware package
 
 Add an IPQ9574 firmware package covering both the runtime firmware and
 the board data, neither of which is yet present in the linux-firmware
@@ -25,22 +24,13 @@ only the tarball name and PKG_RELEASE change.
 Signed-off-by: Sandeep Sondagar <sandeepsondagar@gmail.com>
 (cherry picked from commit d40ac989d85a6ff29bafb02498031571984affa9)
 ---
- package/firmware/ath11k-firmware/Makefile | 53 ++++++++++++++++++++---
- 1 file changed, 47 insertions(+), 6 deletions(-)
+ package/firmware/ath11k-firmware/Makefile | 44 ++++++++++++++++++++---
+ 1 file changed, 39 insertions(+), 5 deletions(-)
 
 diff --git a/package/firmware/ath11k-firmware/Makefile b/package/firmware/ath11k-firmware/Makefile
-index 18d7bac0..b4d2a043 100644
+index 32ec67ea..9b57a6a5 100644
 --- a/package/firmware/ath11k-firmware/Makefile
 +++ b/package/firmware/ath11k-firmware/Makefile
-@@ -11,7 +11,7 @@ PKG_NAME:=ath11k-firmware
- PKG_SOURCE_DATE:=2024-10-14
- PKG_SOURCE_VERSION:=15f050122da5ef5bef2cc8c7c19dfb7f98060a49
- PKG_MIRROR_HASH:=e7a89d1570f32552ade539376181494724b5eafb31d00451ff2dcf5a2922a0cb
--PKG_RELEASE:=1
-+PKG_RELEASE:=2
- 
- PKG_SOURCE_PROTO:=git
- PKG_SOURCE_URL:=https://git.codelinaro.org/clo/ath-firmware/ath11k-firmware.git
 @@ -26,8 +26,8 @@ RSTRIP:=:
  STRIP:=:
  
@@ -51,8 +41,8 @@ index 18d7bac0..b4d2a043 100644
 +ATH11K_LEGACY_FW_RELEASE:=d1491a6b
  ATH11K_LEGACY_FW_SUBDIR:=$(ATH11K_LEGACY_FW_NAME)-$(ATH11K_LEGACY_FW_DATE)~$(ATH11K_LEGACY_FW_RELEASE)
  ATH11K_LEGACY_FW_SOURCE=$(ATH11K_LEGACY_FW_SUBDIR).tar.zst
- 
-@@ -35,12 +35,35 @@ define Download/$(ATH11K_LEGACY_FW_NAME)
+ ATH11K_IPQ9574_SUBDIR:=ath11k-firmware/IPQ9574/hw1.0/2.9.0.1/WLAN.HK.2.9.0.1-01890-QCAHKSWPL_SILICONZ-1
+@@ -36,12 +36,35 @@ define Download/$(ATH11K_LEGACY_FW_NAME)
  	FILE:=$(ATH11K_LEGACY_FW_SOURCE)
  	PROTO:=git
  	URL:=https://github.com/quic/upstream-wifi-fw.git
@@ -90,16 +80,7 @@ index 18d7bac0..b4d2a043 100644
  define Package/ath11k-firmware-default
    SECTION:=firmware
    CATEGORY:=Firmware
-@@ -58,17 +81,24 @@ $(Package/ath11k-firmware-default)
-   TITLE:=IPQ6018 ath11k firmware
- endef
- 
-+define Package/ath11k-firmware-ipq9574
-+$(Package/ath11k-firmware-default)
-+  TITLE:=IPQ9574 ath11k firmware
-+endef
-+
- define Build/Clean
+@@ -71,13 +94,15 @@ define Build/Clean
  	$(call Build/Clean/Default,)
  
  	rm -rf \
@@ -116,11 +97,11 @@ index 18d7bac0..b4d2a043 100644
  endef
  
  define Build/Compile
-@@ -93,5 +123,16 @@ define Package/ath11k-firmware-ipq6018/install
- 		$(1)/lib/firmware/IPQ6018/
- endef
- 
-+define Package/ath11k-firmware-ipq9574/install
+@@ -115,6 +140,15 @@ define Package/ath11k-firmware-ipq9574/install
+ 		$(BUILD_DIR)/$(ATH11K_LEGACY_FW_SUBDIR)/ath11k-firmware/LICENSE.md \
+ 		$(BUILD_DIR)/$(ATH11K_LEGACY_FW_SUBDIR)/$(ATH11K_IPQ9574_SUBDIR)/Notice.txt \
+ 		$(1)/usr/share/licenses/ath11k-firmware-ipq9574/
++=======
 +	$(INSTALL_DIR) $(1)/lib/firmware/ath11k/IPQ9574/hw1.0
 +	$(INSTALL_DATA) \
 +		$(BUILD_DIR)/$(ATH11K_LEGACY_FW_SUBDIR)/ath11k-firmware/IPQ9574/hw1.0/2.11.0.1.1/WLAN.HK.2.11.0.1.1-00039-QCAHKSWPL_SILICONZ-1/*.* \
@@ -128,11 +109,10 @@ index 18d7bac0..b4d2a043 100644
 +	$(INSTALL_DATA) \
 +		$(BUILD_DIR)/$(ATH11K_IPQ9574_FW_SUBDIR)/IPQ9574/hw1.0/board-2.bin \
 +		$(1)/lib/firmware/ath11k/IPQ9574/hw1.0/
-+endef
-+
++>>>>>>> ath11k-firmware: add IPQ9574 board data and firmware package
+ endef
+ 
  $(eval $(call BuildPackage,ath11k-firmware-ipq5018-qcn6122))
- $(eval $(call BuildPackage,ath11k-firmware-ipq6018))
-+$(eval $(call BuildPackage,ath11k-firmware-ipq9574))
 -- 
-2.43.0
+2.52.0
 

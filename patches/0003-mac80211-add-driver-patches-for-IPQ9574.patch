@@ -1,7 +1,7 @@
-From d32f526fc4cb8a4e278ee70f900fff8b3b64c06e Mon Sep 17 00:00:00 2001
+From de7b7786a13e16bd96b3bd393cb84056c629ea63 Mon Sep 17 00:00:00 2001
 From: Sandeep Sondagar <sandeepsondagar@gmail.com>
 Date: Fri, 7 Aug 2026 13:02:45 +0530
-Subject: [PATCH 3/5] mac80211: add driver patches for IPQ9574
+Subject: [PATCH] mac80211: add driver patches for IPQ9574
 
 Forward-port the ath11k IPQ9574 support patches from the earlier
 qualcommax series and adapt them for the backports-6.18 tree: add a new
@@ -273,5 +273,5 @@ index 00000000..ed8b4fb2
 + 	ath11k_dbg(ab, ATH11K_DBG_QMI, "host cap request\n");
 + 
 -- 
-2.43.0
+2.52.0
 

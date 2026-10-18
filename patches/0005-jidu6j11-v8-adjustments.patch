@@ -1,7 +1,7 @@
-From 9fa22175cf960a555156fea611a42e7a6220fba8 Mon Sep 17 00:00:00 2001
+From 57d945f81956d71bde670016d261c250299c6252 Mon Sep 17 00:00:00 2001
 From: v8-build <v8@build>
 Date: Sun, 11 Oct 2026 18:30:17 +0000
-Subject: [PATCH 5/5] jidu6j11: v8 adjustments
+Subject: [PATCH] jidu6j11: v8 adjustments
 
 - pin package/kernel/mac80211 to the JIDU6J11-PR version (backports 6.18.39 +
   IPQ9574 AHB patches) that is proven on this hardware; upstream moved to 7.2
@@ -47,10 +47,13 @@ Subject: [PATCH 5/5] jidu6j11: v8 adjustments
  ...-CE-interrupt-enable-disable-for-AHB.patch |  57 ---
  ...rupts-during-firmware-crash-recovery.patch |  72 ---
  ...-support-calibration-data-from-NVMEM.patch | 110 -----
+ .../953-wifi-ath11k-support-ipq9574.patch     | 223 ----------
  ...dd-basic-hwmon-temperature-reporting.patch | 380 ++++++++++++++++
  ...0-ath12k-prevent-ltssm-startup-crash.patch |   2 +-
  ...k-limit-WMI_SCAN_CHAN_LIST_CMDID-arg.patch |   8 +-
  ...k-fix-5GHz-operation-on-wideband-QCN.patch |   2 +-
+ ...known-DMA-capabilities-without-holes.patch |  83 ----
+ ...split-PHY-topology-when-OTP-is-unset.patch |  43 --
  ...2k-convert-tasklet-to-BH-workqueue-f.patch |  82 ++++
  ...k-control-thermal-support-via-symbol.patch |  10 +-
  ...12k-read-calibration-variant-from-dt.patch |   4 +-
@@ -172,14 +175,17 @@ Subject: [PATCH 5/5] jidu6j11: v8 adjustments
  ...e-RX-link-of-each-station-on-its-own.patch | 157 -------
  target/linux/qualcommbe/image/ipq95xx.mk      |   8 +-
  .../ipq95xx/base-files/etc/board.d/02_network |   1 +
- 162 files changed, 3110 insertions(+), 4545 deletions(-)
+ 165 files changed, 3110 insertions(+), 4894 deletions(-)
  create mode 100644 package/firmware/jidu6j11-board-data/Makefile
  create mode 100644 package/firmware/jidu6j11-board-data/files/board-2.IPQ9574.bin
  create mode 100644 package/firmware/jidu6j11-board-data/files/board-2.QCN9074.bin
  delete mode 100644 package/kernel/mac80211/patches/ath11k/950-wifi-ath11k-implement-CE-interrupt-enable-disable-for-AHB.patch
  delete mode 100644 package/kernel/mac80211/patches/ath11k/951-wifi-ath11k-disable-interrupts-during-firmware-crash-recovery.patch
  delete mode 100644 package/kernel/mac80211/patches/ath11k/952-wifi-ath11k-support-calibration-data-from-NVMEM.patch
+ delete mode 100644 package/kernel/mac80211/patches/ath11k/953-wifi-ath11k-support-ipq9574.patch
  create mode 100644 package/kernel/mac80211/patches/ath12k/001-v7.1-wifi-ath12k-add-basic-hwmon-temperature-reporting.patch
+ delete mode 100644 package/kernel/mac80211/patches/ath12k/108-wifi-ath12k-skip-unknown-DMA-capabilities-without-holes.patch
+ delete mode 100644 package/kernel/mac80211/patches/ath12k/109-wifi-ath12k-read-split-PHY-topology-when-OTP-is-unset.patch
  create mode 100644 package/kernel/mac80211/patches/ath12k/200-Revert-wifi-ath12k-convert-tasklet-to-BH-workqueue-f.patch
  create mode 100644 package/kernel/mac80211/patches/ath9k/341-wifi-ath9k-obtain-system-gpios.patch
  create mode 100644 package/kernel/mac80211/patches/ath9k/600-wifi-ath9k-Clear-DMA-descriptors-without-memset.patch
@@ -244,25 +250,25 @@ Subject: [PATCH 5/5] jidu6j11: v8 adjustments
  delete mode 100644 package/kernel/mac80211/patches/subsys/422-wifi-mac80211-resolve-the-RX-link-of-each-station-on-its-own.patch
 
 diff --git a/package/firmware/ipq-wifi/Makefile b/package/firmware/ipq-wifi/Makefile
-index e050c748..011b9b36 100644
+index 2dfdf115..e4c9a601 100644
 --- a/package/firmware/ipq-wifi/Makefile
 +++ b/package/firmware/ipq-wifi/Makefile
-@@ -52,7 +52,6 @@ ALLWIFIBOARDS:= \
+@@ -53,7 +53,6 @@ ALLWIFIBOARDS:= \
  	iodata_wn-dax3000gr \
  	jdcloud_re-cs-02 \
  	jdcloud_re-ss-01 \
 -	jiorouter_ax6000-jidu6j11 \
  	link_nn6000 \
  	linksys_homewrk \
- 	linksys_mr5500 \
-@@ -261,7 +260,6 @@ $(eval $(call generate-ipq-wifi-package,ignitenet_ss-w2-ac2600,Ignitenet SS-W2-A
+ 	linksys_mr2000 \
+@@ -266,7 +265,6 @@ $(eval $(call generate-ipq-wifi-package,ignitenet_ss-w2-ac2600,Ignitenet SS-W2-A
  $(eval $(call generate-ipq-wifi-package,iodata_wn-dax3000gr,I-O DATA WN-DAX3000GR))
  $(eval $(call generate-ipq-wifi-package,jdcloud_re-cs-02,JDCloud RE-CS-02))
  $(eval $(call generate-ipq-wifi-package,jdcloud_re-ss-01,JDCloud RE-SS-01))
 -$(eval $(call generate-ipq-wifi-package,jiorouter_ax6000-jidu6j11,JioRouter AX6000 JIDU6J11))
  $(eval $(call generate-ipq-wifi-package,link_nn6000,Link NN6000))
  $(eval $(call generate-ipq-wifi-package,linksys_homewrk,Linksys HomeWRK))
- $(eval $(call generate-ipq-wifi-package,linksys_mr5500,Linksys MR5500))
+ $(eval $(call generate-ipq-wifi-package,linksys_mr2000,Linksys MR2000))
 diff --git a/package/firmware/jidu6j11-board-data/Makefile b/package/firmware/jidu6j11-board-data/Makefile
 new file mode 100644
 index 00000000..47c61d51
@@ -1999,6 +2005,235 @@ index 48fc568b..00000000
 - 	ath11k_core_free_bdf(ab, &bd);
 - 	ath11k_dbg(ab, ATH11K_DBG_QMI, "BDF download sequence completed\n");
 - 
+diff --git a/package/kernel/mac80211/patches/ath11k/953-wifi-ath11k-support-ipq9574.patch b/package/kernel/mac80211/patches/ath11k/953-wifi-ath11k-support-ipq9574.patch
+deleted file mode 100644
+index 16946705..00000000
+--- a/package/kernel/mac80211/patches/ath11k/953-wifi-ath11k-support-ipq9574.patch
++++ /dev/null
+@@ -1,223 +0,0 @@
+-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+-From: Alexandru Gagniuc <mr.nuke.me@gmail.com>
+-Date: Thu, 8 Jan 2026 22:44:54 -0600
+-Subject: [PATCH] wifi: ath11k: support ipq9574
+-
+-Add the hardware parameters and AHB matching for the IPQ9574 single-radio
+-wireless interface. Keep coldboot calibration disabled.
+-
+-Refresh the hardware-parameter table context for the existing OpenWrt
+-ath11k changes.
+-
+-Link: https://lists.infradead.org/pipermail/ath11k/2026-January/008113.html
+-Signed-off-by: Alexandru Gagniuc <mr.nuke.me@gmail.com>
+-Signed-off-by: Satoshi Ikeuchi <satosan.ikm@gmail.com>
+----
+-diff --git a/drivers/net/wireless/ath/ath11k/ahb.c b/drivers/net/wireless/ath/ath11k/ahb.c
+-index 8dfe9b40c126..e68bcc6b6069 100644
+---- a/drivers/net/wireless/ath/ath11k/ahb.c
+-+++ b/drivers/net/wireless/ath/ath11k/ahb.c
+-@@ -25,6 +25,9 @@ static const struct of_device_id ath11k_ahb_of_match[] = {
+- 	/* TODO: Should we change the compatible string to something similar
+- 	 * to one that ath10k uses?
+- 	 */
+-+	{ .compatible = "qcom,ipq9574-wifi",
+-+	  .data = (void *)ATH11K_HW_IPQ9574,
+-+	},
+- 	{ .compatible = "qcom,ipq8074-wifi",
+- 	  .data = (void *)ATH11K_HW_IPQ8074,
+- 	},
+-@@ -1117,6 +1120,7 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
+- 	hw_rev = (uintptr_t)device_get_match_data(&pdev->dev);
+- 
+- 	switch (hw_rev) {
+-+	case ATH11K_HW_IPQ9574:
+- 	case ATH11K_HW_IPQ8074:
+- 	case ATH11K_HW_IPQ6018_HW10:
+- 	case ATH11K_HW_IPQ5018_HW10:
+-diff --git a/drivers/net/wireless/ath/ath11k/core.c b/drivers/net/wireless/ath/ath11k/core.c
+-index 812686173ac8..fed888414005 100644
+---- a/drivers/net/wireless/ath/ath11k/core.c
+-+++ b/drivers/net/wireless/ath/ath11k/core.c
+-@@ -40,6 +40,88 @@ module_param_named(ftm_mode, ath11k_ftm_mode, bool, 0444);
+- MODULE_PARM_DESC(ftm_mode, "Boots up in factory test mode");
+- 
+- static struct ath11k_hw_params ath11k_hw_params[] = {
+-+	{
+-+		.hw_rev = ATH11K_HW_IPQ9574,
+-+		.name = "ipq9574",
+-+		.fw = {
+-+			.dir = "IPQ9574/hw1.0",
+-+			.board_size = 256 * 1024,
+-+			.cal_offset = 128 * 1024,
+-+		},
+-+		.max_radios = 1,
+-+		.bdf_addr = 0x4B700000,
+-+		.hw_ops = &ipq9574_ops,
+-+		.ring_mask = &ath11k_hw_ring_mask_ipq8074,
+-+		.internal_sleep_clock = false,
+-+		.regs = &ipq8074_regs,
+-+		.qmi_service_ins_id = ATH11K_QMI_WLFW_SERVICE_INS_ID_V01_IPQ8074,
+-+		.host_ce_config = ath11k_host_ce_config_ipq8074,
+-+		.ce_count = 12,
+-+		.target_ce_config = ath11k_target_ce_config_wlan_ipq8074,
+-+		.target_ce_count = 11,
+-+		.svc_to_ce_map = ath11k_target_service_to_ce_map_wlan_ipq6018,
+-+		.svc_to_ce_map_len = 19,
+-+		.ce_ie_addr = &ath11k_ce_ie_addr_ipq8074,
+-+		.single_pdev_only = false,
+-+		.rxdma1_enable = true,
+-+		.num_rxdma_per_pdev = 1,
+-+		.rx_mac_buf_ring = false,
+-+		.vdev_start_delay = false,
+-+		.htt_peer_map_v2 = true,
+-+
+-+		.spectral = {
+-+			.fft_sz = 2,
+-+			.fft_pad_sz = 2,
+-+			.summary_pad_sz = 0,
+-+			.fft_hdr_len = 16,
+-+			.max_fft_bins = 512,
+-+			.fragment_160mhz = true,
+-+		},
+-+
+-+		.interface_modes = BIT(NL80211_IFTYPE_STATION) |
+-+				   BIT(NL80211_IFTYPE_AP) |
+-+				   BIT(NL80211_IFTYPE_MESH_POINT),
+-+		.supports_monitor = true,
+-+		.full_monitor_mode = false,
+-+		.supports_shadow_regs = false,
+-+		.idle_ps = false,
+-+		.supports_sta_ps = false,
+-+		.coldboot_cal_mm = false,
+-+		.coldboot_cal_ftm = false,
+-+		.fw_mem_mode = 0,
+-+		.num_vdevs = 16 + 1,
+-+		.num_peers = 512,
+-+		.supports_suspend = false,
+-+		.hal_desc_sz = sizeof(struct hal_rx_desc_ipq8074),
+-+		.supports_regdb = false,
+-+		.fix_l1ss = true,
+-+		.credit_flow = false,
+-+		.hal_params = &ath11k_hw_hal_params_ipq8074,
+-+		.supports_dynamic_smps_6ghz = false,
+-+		.alloc_cacheable_memory = true,
+-+		.supports_rssi_stats = false,
+-+		.fw_wmi_diag_event = false,
+-+		.current_cc_support = false,
+-+		.dbr_debug_support = true,
+-+		.global_reset = false,
+-+		.bios_sar_capa = NULL,
+-+		.m3_fw_support = false,
+-+		.fixed_bdf_addr = true,
+-+		.fixed_mem_region = true,
+-+		.static_window_map = false,
+-+		.hybrid_bus_type = false,
+-+		.fixed_fw_mem = false,
+-+		.support_off_channel_tx = false,
+-+		.supports_multi_bssid = false,
+-+
+-+		.sram_dump = {},
+-+
+-+		.tcl_ring_retry = true,
+-+		.tx_ring_size = DP_TCL_DATA_RING_SIZE,
+-+		.smp2p_wow_exit = false,
+-+		.support_dual_stations = false,
+-+		.pdev_suspend = false,
+-+	},
+- 	{
+- 		.hw_rev = ATH11K_HW_IPQ8074,
+- 		.name = "ipq8074 hw2.0",
+-diff --git a/drivers/net/wireless/ath/ath11k/core.h b/drivers/net/wireless/ath/ath11k/core.h
+-index e8780b05ce11..9a4acde3acfa 100644
+---- a/drivers/net/wireless/ath/ath11k/core.h
+-+++ b/drivers/net/wireless/ath/ath11k/core.h
+-@@ -142,6 +142,7 @@ struct ath11k_skb_rxcb {
+- };
+- 
+- enum ath11k_hw_rev {
+-+	ATH11K_HW_IPQ9574,
+- 	ATH11K_HW_IPQ8074,
+- 	ATH11K_HW_QCA6390_HW20,
+- 	ATH11K_HW_IPQ6018_HW10,
+-diff --git a/drivers/net/wireless/ath/ath11k/hw.c b/drivers/net/wireless/ath/ath11k/hw.c
+-index caa6dc12a790..6862b718b004 100644
+---- a/drivers/net/wireless/ath/ath11k/hw.c
+-+++ b/drivers/net/wireless/ath/ath11k/hw.c
+-@@ -34,6 +34,17 @@ static u8 ath11k_hw_ipq6018_mac_from_pdev_id(int pdev_idx)
+- 	return pdev_idx;
+- }
+- 
+-+static u8 ath11k_hw_ipq9574_mac_from_pdev_id(int pdev_idx)
+-+{
+-+	/* ipq9574 is a single PHY radio which maps to PHY B(mac3) */
+-+	switch (pdev_idx) {
+-+	case 0:
+-+		return 2;
+-+	default:
+-+		return ATH11K_INVALID_HW_MAC_ID;
+-+	}
+-+}
+-+
+- static void ath11k_hw_ipq8074_tx_mesh_enable(struct ath11k_base *ab,
+- 					     struct hal_tcl_data_cmd *tcl_cmd)
+- {
+-@@ -900,6 +911,46 @@ static u32 ath11k_hw_wcn6750_get_tcl_ring_selector(struct sk_buff *skb)
+- 	return skb_get_hash(skb);
+- }
+- 
+-+const struct ath11k_hw_ops ipq9574_ops = {
+-+	.get_hw_mac_from_pdev_id = ath11k_hw_ipq9574_mac_from_pdev_id,
+-+	.wmi_init_config = ath11k_init_wmi_config_ipq8074,
+-+	.mac_id_to_pdev_id = ath11k_hw_mac_id_to_pdev_id_ipq8074,
+-+	.mac_id_to_srng_id = ath11k_hw_mac_id_to_srng_id_ipq8074,
+-+	.tx_mesh_enable = ath11k_hw_ipq8074_tx_mesh_enable,
+-+	.rx_desc_get_first_msdu = ath11k_hw_ipq8074_rx_desc_get_first_msdu,
+-+	.rx_desc_get_last_msdu = ath11k_hw_ipq8074_rx_desc_get_last_msdu,
+-+	.rx_desc_get_l3_pad_bytes = ath11k_hw_ipq8074_rx_desc_get_l3_pad_bytes,
+-+	.rx_desc_get_hdr_status = ath11k_hw_ipq8074_rx_desc_get_hdr_status,
+-+	.rx_desc_encrypt_valid = ath11k_hw_ipq8074_rx_desc_encrypt_valid,
+-+	.rx_desc_get_encrypt_type = ath11k_hw_ipq8074_rx_desc_get_encrypt_type,
+-+	.rx_desc_get_decap_type = ath11k_hw_ipq8074_rx_desc_get_decap_type,
+-+	.rx_desc_get_mesh_ctl = ath11k_hw_ipq8074_rx_desc_get_mesh_ctl,
+-+	.rx_desc_get_ldpc_support = ath11k_hw_ipq8074_rx_desc_get_ldpc_support,
+-+	.rx_desc_get_mpdu_seq_ctl_vld = ath11k_hw_ipq8074_rx_desc_get_mpdu_seq_ctl_vld,
+-+	.rx_desc_get_mpdu_fc_valid = ath11k_hw_ipq8074_rx_desc_get_mpdu_fc_valid,
+-+	.rx_desc_get_mpdu_start_seq_no = ath11k_hw_ipq8074_rx_desc_get_mpdu_start_seq_no,
+-+	.rx_desc_get_msdu_len = ath11k_hw_ipq8074_rx_desc_get_msdu_len,
+-+	.rx_desc_get_msdu_sgi = ath11k_hw_ipq8074_rx_desc_get_msdu_sgi,
+-+	.rx_desc_get_msdu_rate_mcs = ath11k_hw_ipq8074_rx_desc_get_msdu_rate_mcs,
+-+	.rx_desc_get_msdu_rx_bw = ath11k_hw_ipq8074_rx_desc_get_msdu_rx_bw,
+-+	.rx_desc_get_msdu_freq = ath11k_hw_ipq8074_rx_desc_get_msdu_freq,
+-+	.rx_desc_get_msdu_pkt_type = ath11k_hw_ipq8074_rx_desc_get_msdu_pkt_type,
+-+	.rx_desc_get_msdu_nss = ath11k_hw_ipq8074_rx_desc_get_msdu_nss,
+-+	.rx_desc_get_mpdu_tid = ath11k_hw_ipq8074_rx_desc_get_mpdu_tid,
+-+	.rx_desc_get_mpdu_peer_id = ath11k_hw_ipq8074_rx_desc_get_mpdu_peer_id,
+-+	.rx_desc_copy_attn_end_tlv = ath11k_hw_ipq8074_rx_desc_copy_attn_end,
+-+	.rx_desc_get_mpdu_start_tag = ath11k_hw_ipq8074_rx_desc_get_mpdu_start_tag,
+-+	.rx_desc_get_mpdu_ppdu_id = ath11k_hw_ipq8074_rx_desc_get_mpdu_ppdu_id,
+-+	.rx_desc_set_msdu_len = ath11k_hw_ipq8074_rx_desc_set_msdu_len,
+-+	.rx_desc_get_attention = ath11k_hw_ipq8074_rx_desc_get_attention,
+-+	.rx_desc_get_msdu_payload = ath11k_hw_ipq8074_rx_desc_get_msdu_payload,
+-+	.reo_setup = ath11k_hw_ipq8074_reo_setup,
+-+	.mpdu_info_get_peerid = ath11k_hw_ipq8074_mpdu_info_get_peerid,
+-+	.rx_desc_mac_addr2_valid = ath11k_hw_ipq8074_rx_desc_mac_addr2_valid,
+-+	.rx_desc_mpdu_start_addr2 = ath11k_hw_ipq8074_rx_desc_mpdu_start_addr2,
+-+	.get_ring_selector = ath11k_hw_ipq8074_get_tcl_ring_selector,
+-+};
+-+
+- const struct ath11k_hw_ops ipq8074_ops = {
+- 	.get_hw_mac_from_pdev_id = ath11k_hw_ipq8074_mac_from_pdev_id,
+- 	.wmi_init_config = ath11k_init_wmi_config_ipq8074,
+-diff --git a/drivers/net/wireless/ath/ath11k/hw.h b/drivers/net/wireless/ath/ath11k/hw.h
+-index 52d9f4c13b13..0ea36c8ebb66 100644
+---- a/drivers/net/wireless/ath/ath11k/hw.h
+-+++ b/drivers/net/wireless/ath/ath11k/hw.h
+-@@ -273,6 +273,7 @@ struct ath11k_hw_ops {
+- 	u32 (*get_ring_selector)(struct sk_buff *skb);
+- };
+- 
+-+extern const struct ath11k_hw_ops ipq9574_ops;
+- extern const struct ath11k_hw_ops ipq8074_ops;
+- extern const struct ath11k_hw_ops ipq6018_ops;
+- extern const struct ath11k_hw_ops qca6390_ops;
 diff --git a/package/kernel/mac80211/patches/ath12k/001-v7.1-wifi-ath12k-add-basic-hwmon-temperature-reporting.patch b/package/kernel/mac80211/patches/ath12k/001-v7.1-wifi-ath12k-add-basic-hwmon-temperature-reporting.patch
 new file mode 100644
 index 00000000..022e3327
@@ -2439,6 +2674,144 @@ index e5d71b47..2cb82ae4 100644
   						    rate_cap_rx_chainmask);
   	}
   
+diff --git a/package/kernel/mac80211/patches/ath12k/108-wifi-ath12k-skip-unknown-DMA-capabilities-without-holes.patch b/package/kernel/mac80211/patches/ath12k/108-wifi-ath12k-skip-unknown-DMA-capabilities-without-holes.patch
+deleted file mode 100644
+index fe0b75cd..00000000
+--- a/package/kernel/mac80211/patches/ath12k/108-wifi-ath12k-skip-unknown-DMA-capabilities-without-holes.patch
++++ /dev/null
+@@ -1,83 +0,0 @@
+-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+-From: Satoshi Ikeuchi <satosan.ikm@gmail.com>
+-Date: Sun, 27 Sep 2026 13:00:00 +0900
+-Subject: [PATCH] wifi: ath12k: skip unknown direct buffer capabilities
+-
+-Firmware can advertise optional direct buffer ring module IDs which the
+-driver does not implement. Rejecting the whole capability event prevents
+-startup even though the driver will not configure those ring types.
+-
+-Skip unknown module IDs, retaining known capabilities in a compact array.
+-Publish only the retained count so a skipped, zero-initialized slot cannot
+-match a later spectral capability lookup. Free an all-unknown array to
+-avoid leaking it when a subsequent capability event is processed.
+-
+-Malformed TLV and allocation failures still propagate. This does not enable
+-new ring types, change firmware selection or relax calibration checks.
+-
+-Based on the public unknown-module handling proposal in OpenWrt PR #23001.
+-Rebased for backports 7.2 and extended with compaction and empty-result
+-cleanup.
+-
+-Based-on-patch-by: Nazar Mokrynskyi <nazar@mokrynskyi.com>
+-Link: https://github.com/openwrt/openwrt/pull/23001
+-Signed-off-by: Satoshi Ikeuchi <satosan.ikm@gmail.com>
+----
+- drivers/net/wireless/ath/ath12k/wmi.c | 31 ++++++++++++++++---------------
+- 1 file changed, 16 insertions(+), 15 deletions(-)
+-
+-diff --git a/drivers/net/wireless/ath/ath12k/wmi.c b/drivers/net/wireless/ath/ath12k/wmi.c
+---- a/drivers/net/wireless/ath/ath12k/wmi.c
+-+++ b/drivers/net/wireless/ath/ath12k/wmi.c
+-@@ -4917,7 +4917,7 @@ static int ath12k_wmi_dma_ring_caps(struct ath12k_base *ab,
+- 	struct ath12k_wmi_dma_ring_caps_params *dma_caps;
+- 	struct ath12k_dbring_cap *dir_buff_caps;
+- 	int ret;
+--	u32 i;
+-+	u32 i, j;
+- 
+- 	dma_caps_parse->n_dma_ring_caps = 0;
+- 	dma_caps = (struct ath12k_wmi_dma_ring_caps_params *)ptr;
+-@@ -4942,27 +4942,28 @@ static int ath12k_wmi_dma_ring_caps(struct ath12k_base *ab,
+- 		return ret;
+- 
+- 	dir_buff_caps = ab->db_caps;
+--	for (i = 0; i < dma_caps_parse->n_dma_ring_caps; i++) {
+-+	for (i = 0, j = 0; i < dma_caps_parse->n_dma_ring_caps; i++) {
+- 		if (le32_to_cpu(dma_caps[i].module_id) >= WMI_DIRECT_BUF_MAX) {
+--			ath12k_warn(ab, "Invalid module id %d\n",
+--				    le32_to_cpu(dma_caps[i].module_id));
+--			ret = -EINVAL;
+--			goto free_dir_buff;
+-+			ath12k_dbg(ab, ATH12K_DBG_WMI,
+-+				   "skipping unknown direct buffer module id %u\n",
+-+				   le32_to_cpu(dma_caps[i].module_id));
+-+			continue;
+- 		}
+- 
+--		dir_buff_caps[i].id = le32_to_cpu(dma_caps[i].module_id);
+--		dir_buff_caps[i].pdev_id =
+-+		dir_buff_caps[j].id = le32_to_cpu(dma_caps[i].module_id);
+-+		dir_buff_caps[j].pdev_id =
+- 			DP_HW2SW_MACID(le32_to_cpu(dma_caps[i].pdev_id));
+--		dir_buff_caps[i].min_elem = le32_to_cpu(dma_caps[i].min_elem);
+--		dir_buff_caps[i].min_buf_sz = le32_to_cpu(dma_caps[i].min_buf_sz);
+--		dir_buff_caps[i].min_buf_align = le32_to_cpu(dma_caps[i].min_buf_align);
+-+		dir_buff_caps[j].min_elem = le32_to_cpu(dma_caps[i].min_elem);
+-+		dir_buff_caps[j].min_buf_sz = le32_to_cpu(dma_caps[i].min_buf_sz);
+-+		dir_buff_caps[j].min_buf_align = le32_to_cpu(dma_caps[i].min_buf_align);
+-+		j++;
+- 	}
+- 
+-+	ab->num_db_cap = j;
+-+	if (!j)
+-+		ath12k_wmi_free_dbring_caps(ab);
+-+
+- 	return 0;
+--
+--free_dir_buff:
+--	ath12k_wmi_free_dbring_caps(ab);
+--	return ret;
+- }
+- 
+- static void
+diff --git a/package/kernel/mac80211/patches/ath12k/109-wifi-ath12k-read-split-PHY-topology-when-OTP-is-unset.patch b/package/kernel/mac80211/patches/ath12k/109-wifi-ath12k-read-split-PHY-topology-when-OTP-is-unset.patch
+deleted file mode 100644
+index cc4ca9d0..00000000
+--- a/package/kernel/mac80211/patches/ath12k/109-wifi-ath12k-read-split-PHY-topology-when-OTP-is-unset.patch
++++ /dev/null
+@@ -1,43 +0,0 @@
+-From 0000000000000000000000000000000000000000 Mon Sep 17 00:00:00 2001
+-From: Satoshi Ikeuchi <satosan.ikm@gmail.com>
+-Date: Tue, 29 Sep 2026 00:00:00 +0000
+-Subject: [PATCH] wifi: ath12k: read split-PHY topology when OTP is unset
+-
+-QCN9274 hw2.0 needs the single- or dual-MAC selection before target
+-capabilities can be queried. A zero or erased OTP board ID cannot describe
+-the topology, so the driver currently defaults to single MAC.
+-
+-Use the radio's qcom,split-phy property for this otherwise ambiguous case.
+-This describes the individual device, without matching a machine name or
+-changing the default for other radios on the same system.
+-
+-Keep valid OTP authoritative and retain the existing fallback for devices
+-without the property and for other hardware revisions. Leave later QMI
+-capability discovery and WMI mode selection unchanged.
+-
+-Link: https://github.com/torvalds/linux/commit/af9bc78d14fbe77db6e7526efaced162060f27bc
+-Signed-off-by: Satoshi Ikeuchi <satosan.ikm@gmail.com>
+----
+---- a/drivers/net/wireless/ath/ath12k/mhi.c
+-+++ b/drivers/net/wireless/ath/ath12k/mhi.c
+-@@ -6,6 +6,7 @@
+- 
+- #include <linux/msi.h>
+- #include <linux/pci.h>
+-+#include <linux/property.h>
+- #include <linux/firmware.h>
+- 
+- #include "core.h"
+-@@ -209,8 +210,11 @@ int ath12k_mhi_register(struct ath12k_pc
+- 		board_id = u32_get_bits(board_id, OTP_BOARD_ID_MASK);
+- 
+- 		if (!board_id || (board_id == OTP_INVALID_BOARD_ID)) {
+-+			dualmac = ab->hw_rev == ATH12K_HW_QCN9274_HW20 &&
+-+				  device_property_read_bool(ab->dev, "qcom,split-phy");
+- 			ath12k_dbg(ab, ATH12K_DBG_BOOT,
+--				   "failed to read board id\n");
+-+				   "invalid OTP, selecting %s-mac\n",
+-+				   dualmac ? "dual" : "single");
+- 		} else if (board_id & OTP_VALID_DUALMAC_BOARD_ID_MASK) {
+- 			dualmac = true;
+- 			ath12k_dbg(ab, ATH12K_DBG_BOOT,
 diff --git a/package/kernel/mac80211/patches/ath12k/200-Revert-wifi-ath12k-convert-tasklet-to-BH-workqueue-f.patch b/package/kernel/mac80211/patches/ath12k/200-Revert-wifi-ath12k-convert-tasklet-to-BH-workqueue-f.patch
 new file mode 100644
 index 00000000..6df26e0d
@@ -11081,5 +11454,5 @@ index fca8549f..28674f32 100644
  	*)
  		echo "Unsupported hardware. Network interfaces not initialized"
 -- 
-2.43.0
+2.52.0
 

@@ -1,7 +1,7 @@
-From 389ce915e84556bda6789dfb64fa8f6fd4332202 Mon Sep 17 00:00:00 2001
+From 224ff9389f97d1095fe70ad1b01377b77e857d82 Mon Sep 17 00:00:00 2001
 From: Sandeep Sondagar <sandeepsondagar@gmail.com>
 Date: Fri, 7 Aug 2026 12:54:28 +0530
-Subject: [PATCH 2/5] kernel: enable IPQ9574 AHB support
+Subject: [PATCH] kernel: enable IPQ9574 AHB support
 
 Build ath11k-ahb and kmod-qrtr-smd for the qualcommbe target in addition
 to qualcommax, so the integrated IPQ9574 Wi-Fi device is available on
@@ -10,26 +10,11 @@ IPQ95xx SoCs. Bump the mac80211 PKG_RELEASE.
 Signed-off-by: Sandeep Sondagar <sandeepsondagar@gmail.com>
 (cherry picked from commit 3c3a654ebfde7e5e0505bdaf4b7d6481be070bc3)
 ---
- package/kernel/linux/modules/netsupport.mk |  2 +-
- package/kernel/mac80211/Makefile           | 13 ++++++-------
- package/kernel/mac80211/ath.mk             |  2 +-
- 3 files changed, 8 insertions(+), 9 deletions(-)
+ package/kernel/mac80211/Makefile | 13 ++++++-------
+ 1 file changed, 6 insertions(+), 7 deletions(-)
 
-diff --git a/package/kernel/linux/modules/netsupport.mk b/package/kernel/linux/modules/netsupport.mk
-index f9cf5e78..60744c0a 100644
---- a/package/kernel/linux/modules/netsupport.mk
-+++ b/package/kernel/linux/modules/netsupport.mk
-@@ -1667,7 +1667,7 @@ $(eval $(call KernelPackage,qrtr-tun))
- define KernelPackage/qrtr-smd
-   SUBMENU:=$(NETWORK_SUPPORT_MENU)
-   TITLE:=SMD IPC Router channels
--  DEPENDS:=+kmod-qrtr @TARGET_qualcommax
-+  DEPENDS:=+kmod-qrtr @(TARGET_qualcommax||TARGET_qualcommbe)
-   KCONFIG:=CONFIG_QRTR_SMD
-   FILES:= $(LINUX_DIR)/net/qrtr/qrtr-smd.ko
-   AUTOLOAD:=$(call AutoProbe,qrtr-smd)
 diff --git a/package/kernel/mac80211/Makefile b/package/kernel/mac80211/Makefile
-index b0599473..c7c9bb6d 100644
+index a90ab6ef..8e6977f8 100644
 --- a/package/kernel/mac80211/Makefile
 +++ b/package/kernel/mac80211/Makefile
 @@ -10,17 +10,16 @@ include $(INCLUDE_DIR)/kernel.mk
@@ -38,7 +23,7 @@ index b0599473..c7c9bb6d 100644
  
 -PKG_SOURCE_VERSION:=7.2
 -PKG_VERSION:=$(subst -,_,$(PKG_SOURCE_VERSION))
--PKG_RELEASE:=5
+-PKG_RELEASE:=8
 +PKG_VERSION:=6.18.39
 +PKG_RELEASE:=4
  PKG_LICENSE:=GPL-2.0-only
@@ -56,19 +41,6 @@ index b0599473..c7c9bb6d 100644
  PKG_BUILD_PARALLEL:=1
  
  PKG_MAINTAINER:=Felix Fietkau <nbd@nbd.name>
-diff --git a/package/kernel/mac80211/ath.mk b/package/kernel/mac80211/ath.mk
-index f1c041e7..9b50c6a8 100644
---- a/package/kernel/mac80211/ath.mk
-+++ b/package/kernel/mac80211/ath.mk
-@@ -340,7 +340,7 @@ define KernelPackage/ath11k-ahb
-   $(call KernelPackage/mac80211/Default)
-   TITLE:=Qualcomm 802.11ax AHB wireless chipset support
-   URL:=https://wireless.wiki.kernel.org/en/users/drivers/ath11k
--  DEPENDS+= @TARGET_qualcommax +kmod-ath11k +kmod-qrtr-smd
-+  DEPENDS+= @(TARGET_qualcommax||TARGET_qualcommbe) +kmod-ath11k +kmod-qrtr-smd
-   FILES:=$(PKG_BUILD_DIR)/drivers/net/wireless/ath/ath11k/ath11k_ahb.ko
-   AUTOLOAD:=$(call AutoProbe,ath11k_ahb)
- endef
 -- 
-2.43.0
+2.52.0
 

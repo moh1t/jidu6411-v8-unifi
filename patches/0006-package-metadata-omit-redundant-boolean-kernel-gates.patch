@@ -1,0 +1,33 @@
+From c278588780c8c5dd908cc6dd740beb0f6ae215ea Mon Sep 17 00:00:00 2001
+From: v8-build <v8@build>
+Date: Sun, 18 Oct 2026 15:17:02 +0000
+Subject: [PATCH] package-metadata: omit redundant boolean kernel gates
+
+Avoid a false dnsmasq-full Kconfig cycle when the conditional IPset dependency reaches kmod-iptables through the !LINUX_6_12 gate. Only omit a repeated boolean kernel literal from a pure conjunction; retain real dependencies and arbitrary tristate expressions.
+---
+ scripts/package-metadata.pl | 9 +++++++++
+ 1 file changed, 9 insertions(+)
+
+diff --git a/scripts/package-metadata.pl b/scripts/package-metadata.pl
+index f25a85b3..3422e4bc 100755
+--- a/scripts/package-metadata.pl
++++ b/scripts/package-metadata.pl
+@@ -239,6 +239,15 @@ sub mconf_depends {
+ 				next if $depend eq $condition;
+ 				$depend = "$depend if $condition";
+ 			} else {
++				# Kernel-version symbols are boolean. Re-emitting a kernel
++				# gate already required by a conjunction creates a tautology
++				# such as !(PACKAGE_foo_option && !LINUX_6_12) || !LINUX_6_12.
++				# Kconfig still sees foo -> foo_option -> foo as a cycle.
++				# Do not simplify arbitrary tristates or OR expressions.
++				if ($depend =~ /^!?LINUX_[0-9_]+$/ &&
++				    $condition =~ /^!?[A-Za-z0-9_]+(?:\s*&&\s*!?[A-Za-z0-9_]+)*$/) {
++					next if grep { $_ eq $depend } split(/\s*&&\s*/, $condition);
++				}
+ 				next if $dep->{"$depend if $condition"};
+ 				$depend = "!($condition) || $depend" unless $dep->{$condition} eq 'select';
+ 			}
+-- 
+2.52.0
+
