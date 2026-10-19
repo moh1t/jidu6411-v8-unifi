@@ -38,9 +38,12 @@ with the image rather than installing arbitrary snapshot kmods later.
 `main` resolves the newest upstream OpenWrt commit when the job starts. Exact
 upstream and feed revisions are recorded in the artifact. To reproduce the
 locally checked base, select **`pinned`** instead; `openwrt.pin` currently identifies
-`71194c985d8a97ea49fe42d9cebf6f739d729154` (2026-10-18, kernel 6.18.55).
+`5b8554a95eee055c5bee96f6f2dfd3beb241e0e7` (2026-10-19, kernel 6.18.55).
 You can also enter a full OpenWrt commit SHA. Future upstream changes can break
-the hardware patches; the build stops rather than skipping them.
+the hardware patches; the build stops rather than skipping them. Applied patches
+are checked for leftover merge markers before feed setup. Full builds check the
+ath11k firmware download before compiling and retain per-package build logs in
+the diagnostics artifact.
 
 This kit derives from [Vijay's v8 build](https://github.com/kuduku1/jidu6411-v8-unifi)
 and [Sandiep's JIDU6J11 support](https://github.com/Sandiep/openwrt/branches).

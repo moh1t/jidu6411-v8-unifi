@@ -36,6 +36,8 @@ BASE_COMMIT=$(git rev-parse HEAD)
 printf '%s\n' "$BASE_COMMIT" > "$WORK/openwrt-base.commit"
 # Fail on incompatible upstream changes; never silently skip a hardware patch.
 git -c user.name=v8-build -c user.email=v8@build am -q "$HERE"/patches/*.patch
+# Patch application can succeed even if a patch contains unresolved merges.
+git diff --check "$BASE_COMMIT" HEAD
 cp "$HERE/feeds.conf" feeds.conf
 ./scripts/feeds update -a
 # Install the selected firmware's dependency closure. Unrelated feed packages
@@ -84,8 +86,10 @@ mkdir -p files
 cp -a "$HERE/files/common/." files/
 cp -a "$HERE/files/$VARIANT/." files/
 find files -name .keep -delete
+# Validate and download the hardware firmware before the expensive toolchain build.
+make package/firmware/ath11k-firmware/download -j1 V=s
 make download -j"$JOBS" || make download -j1 V=s
-make -j"$JOBS" || make -j1 V=s
+make -j"$JOBS" BUILD_LOG=1 || make -j1 V=s BUILD_LOG=1
 
 T=bin/targets/qualcommbe/ipq95xx
 python3 "$HERE/scripts/verify-images.py" "$T" $DEVICES

@@ -70,7 +70,7 @@ jobs:
 
       - name: Upload verified firmware
         if: success() && inputs.check_only != true
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: jidu${{ env.DEVICE }}-snapshot-${{ matrix.variant }}-${{ github.run_number }}
           path: out/${{ env.DEVICE }}/${{ matrix.variant }}/
@@ -79,7 +79,7 @@ jobs:
 
       - name: Upload build diagnostics
         if: always()
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: diagnostics-jidu${{ env.DEVICE }}-${{ matrix.variant }}-${{ github.run_number }}
           path: |
