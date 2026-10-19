@@ -1,0 +1,42 @@
+From: JIDU build maintainers <v8@build>
+Subject: [PATCH] qualcommbe: reuse the SoC Q6 reservation for JIDU6J11
+
+The pinned kernel's IPQ9574 DTS already declares q6_region as
+/reserved-memory/wcss@4ab00000. The inherited JIDU DTS adds a second
+node named wcnss@4ab00000 with the same label, so dtc rejects the image.
+
+Override the shared region by label and retain the JIDU firmware's
+0x2d00000 (45 MiB) size. Keep the inherited no-map property and the
+remoteproc memory-region reference, with only one reservation at this
+address. Both JIDU6111 and JIDU6411 use this common board definition.
+---
+diff --git a/target/linux/qualcommbe/dts/ipq9554-jiorouter-ax6000-jidu6j11.dtsi b/target/linux/qualcommbe/dts/ipq9554-jiorouter-ax6000-jidu6j11.dtsi
+index f4dea36..55061ba 100644
+--- a/target/linux/qualcommbe/dts/ipq9554-jiorouter-ax6000-jidu6j11.dtsi
++++ b/target/linux/qualcommbe/dts/ipq9554-jiorouter-ax6000-jidu6j11.dtsi
+@@ -103,13 +103,6 @@
+ 		regulator-name = "vdd_usb_phy";
+ 	};
+ 
+-	reserved-memory {
+-		q6_region: wcnss@4ab00000 {
+-			no-map;
+-			reg = <0x0 0x4ab00000 0x0 0x2d00000>;
+-		};
+-	};
+-
+ 	wcss_smp2p: smp2p-wcss {
+ 		compatible = "qcom,smp2p";
+ 		qcom,smem = <435>, <428>;
+@@ -132,6 +125,11 @@
+ 	};
+ };
+ 
++&q6_region {
++	/* Keep the JIDU firmware's 45 MiB reservation in the shared SoC node. */
++	reg = <0x0 0x4ab00000 0x0 0x2d00000>;
++};
++
+ &cpu_opp_table {
+ 	opp-936000000 {
+ 		opp-microvolt = <1075000>;

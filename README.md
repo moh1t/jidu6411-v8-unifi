@@ -85,6 +85,33 @@ From this repository directory, after obtaining the fix:
 This keeps existing downloads and build output; it does not regenerate `out/`.
 Fresh builds apply patch 0007 automatically. Keep checksum verification enabled.
 
+If image generation stops with `ERROR (duplicate_label)` for `q6_region`,
+apply patch 0008 once to the existing build. The newer IPQ9574 SoC definition
+already reserves Q6 memory; the inherited JIDU definition added a second node
+at the same address. The fix reuses the SoC node and preserves JIDU's 45 MiB
+reservation, `no-map` property and remoteproc memory reference.
+From this repository directory, after obtaining the fix:
+
+```sh
+(
+  set -e
+  tree="$PWD/work-6111-stock/openwrt"
+  fix="$PWD/patches/0008-qualcommbe-reuse-jidu-q6-memory-region.patch"
+  git -C "$tree" apply --check "$fix"
+  git -C "$tree" apply "$fix"
+  sha256sum "$fix" >> work-6111-stock/build-provenance.txt
+  bash scripts/check-device-trees.sh "$tree"
+  make -C "$tree" -j2 BUILD_LOG=1 || make -C "$tree" -j1 V=s BUILD_LOG=1
+  python3 scripts/verify-images.py "$tree/bin/targets/qualcommbe/ipq95xx" 6111
+)
+```
+
+This checks both JIDU device trees using the kernel's existing device-tree
+compiler, then resumes the build. Keep the work directory: no clean or fresh
+toolchain build is needed. Images remain in the target's `bin` directory; these
+commands do not regenerate `out/`. Fresh builds apply patch 0008 automatically.
+Do not force device-tree output with `dtc -f` or disable the duplicate-label check.
+
 ## Build with GitHub Actions
 
 1. Open **Actions → Build JIDU6J11 snapshot → Run workflow** in your copy of this repository.
@@ -136,6 +163,8 @@ a false dnsmasq-full Kconfig cycle on this snapshot. Patch 0007 removes the
 redundant generic IPQ9574 board-data download; both device-specific board files
 come from the bundled `jidu6j11-board-data` package, which is required in the
 configuration and checked in each image's package manifest.
+Patch 0008 merges the inherited JIDU Q6 memory reservation into the SoC node
+introduced by the newer kernel patches, fixing device-tree compilation.
 They retain the v8 board data and **mac80211 backports 6.18.39** with its IPQ9574
 AHB changes. This is latest OpenWrt with a deliberately pinned hardware-support
 stack, not an assertion that the newest upstream wireless stack works on this
@@ -171,6 +200,16 @@ This uses `openwrt.pin`. Set `OPENWRT_REF=main` to check current upstream instea
 Configuration checks are not firmware compilation. Hardware operation still
 requires testing on an unlocked JIDU6111 with a known recovery method.
 
+After the kernel has been prepared and its `scripts/dtc/dtc` built, check both
+board definitions without rebuilding firmware:
+
+```sh
+bash scripts/check-device-trees.sh work-6111-stock/openwrt
+```
+
+An optional second argument selects a prepared kernel directory explicitly.
+This check catches device-tree errors that `CHECK_ONLY=1` does not cover.
+
 ## Validation status
 
 The patch series, wireless backports patches, JIDU6111 configuration, host
@@ -180,6 +219,13 @@ bundled board-data overlay. Removing the generic board archive produces the
 same 30 installed firmware files/symlinks, including both JIDU board files.
 The remaining shared CodeLinaro source could not be fetched in the restricted
 review environment; its pinned revision and checksum checks remain in place.
+
+The duplicate Q6-label failure was reproduced against Linux 6.18.55 with the
+generic and qualcommbe kernel patches applied. With patch 0008, both JIDU6111
+and JIDU6411 device trees compile using that kernel's own `dtc`. The compiled
+trees were checked for a single 45 MiB Q6 reservation, `no-map`, the correct
+remoteproc reference and the SKU-specific Wi-Fi calibration variants. The
+full eight-patch series applies cleanly, and all nine image-verifier tests pass.
 
 **A complete firmware build and on-device validation are still required before
 calling this production-ready.** The cancelled GitHub run is not a successful

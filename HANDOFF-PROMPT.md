@@ -20,6 +20,13 @@ repacked archive failed its checksum. Both JIDU board files are supplied by the
 required local board-data package. README.md documents applying this fix to an
 existing build tree without discarding downloads or bypassing checksums.
 
+The next local build reached image generation but failed on a duplicate
+`q6_region` label: the newer SoC DTS and inherited JIDU DTS both reserved memory
+at 0x4ab00000. Patch 0008 reuses the SoC node, keeping the JIDU 45 MiB size.
+`scripts/check-device-trees.sh` compiles both board definitions against a
+prepared kernel. README.md documents applying the patch and resuming the
+existing build without cleaning or rebuilding the toolchain.
+
 Configuration and package checks are not a complete firmware compile or a
 hardware test. Do not describe the firmware as production-ready until the
 full build and JIDU6111 acceptance checks in README.md have passed. Preserve
