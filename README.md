@@ -8,21 +8,37 @@ bridges after flashing, for your own network.
 
 ## Build locally
 
-Use an ordinary user on an x86-64 Linux machine. Ubuntu 24.04 is the reference
-host; Python **3.11 or newer** is required by the artifact verifier. Allow at
-least 60 GB of free disk space and 8 GB of RAM for a full build. Install the
-dependencies first (only this step needs sudo):
+Build as an ordinary user inside Linux. Ubuntu 24.04 amd64 is the reference CI
+host. The dependency installer also handles Ubuntu arm64, including Ubuntu
+26.04 in Parallels on Apple Silicon. The full firmware build has not yet been
+validated on that host. Python **3.11 or newer** is required by the artifact
+verifier. Allow at least 60 GB of free disk space and 8 GB of RAM for a full build.
+
+Install Git first, clone the repository, then install the dependencies selected
+for your host architecture (only package installation needs sudo). Ubuntu's
+`main` and `universe` repositories must be enabled:
 
 ```sh
 sudo apt-get update
-sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib \
-  g++-multilib gettext git libncurses-dev libssl-dev libelf-dev pkgconf \
-  python3-setuptools python3-dev rsync swig unzip zlib1g-dev file wget zstd
+sudo apt-get install -y git ca-certificates
 git clone --branch firmware/jidu6111-snapshot https://github.com/moh1t/jidu6411-v8-unifi.git
 cd jidu6411-v8-unifi
+bash scripts/install-build-deps.sh
 python3 -m unittest discover -s tests -v
 DEVICE=6111 VARIANT=stock JOBS=2 bash ./build.sh
 ```
+
+Use `bash scripts/install-build-deps.sh --print` to inspect the package list
+without installing anything. On **arm64**, `gcc-multilib` and `g++-multilib` are
+omitted: Ubuntu does not publish those native packages for arm64, and they are
+not needed to build this router's cross-toolchain. `build-essential` supplies the
+native host compiler; OpenWrt builds the target compiler itself.
+
+For a 16 GB Apple Silicon Mac, start with **8 GB RAM and 4 vCPUs** assigned to
+the Ubuntu VM and keep **`JOBS=2`**. Build on the VM's Linux filesystem, such as
+`~/src/`, not a Parallels shared macOS folder: OpenWrt requires case-sensitive
+filenames and Unix filesystem semantics. Allow additional disk space for the
+VM's operating system beyond the build's free-space requirement.
 
 The default uses `openwrt.pin`, the latest snapshot checked with this patch set.
 Set `OPENWRT_REF=main` to resolve upstream's latest commit instead; later changes
@@ -113,10 +129,11 @@ router network defaults; it does not apply the UniFi/AP conversion overlay.
 
 ## Local configuration check
 
-Install the host dependencies listed in `.github/workflows/build.yml`, then:
+Install the host dependencies with `bash scripts/install-build-deps.sh`, then
+use a separate work directory so the later full build can use its default path:
 
 ```sh
-DEVICE=6111 VARIANT=stock CHECK_ONLY=1 bash ./build.sh
+WORK="$PWD/work-check-6111-stock" DEVICE=6111 VARIANT=stock CHECK_ONLY=1 bash ./build.sh
 ```
 
 This uses `openwrt.pin`. Set `OPENWRT_REF=main` to check current upstream instead.
