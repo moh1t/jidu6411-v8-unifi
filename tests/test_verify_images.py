@@ -13,6 +13,12 @@ spec.loader.exec_module(module)
 
 
 class FirmwareValidationTests(unittest.TestCase):
+    packages = [
+        'kmod-batman-adv', 'kmod-nft-bridge', 'jidu6j11-board-data',
+        'kmod-ath11k', 'kmod-ath11k-ahb', 'kmod-ath11k-pci',
+        'ath11k-firmware-ipq9574', 'ath11k-firmware-qcn9074',
+    ]
+
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
@@ -27,7 +33,7 @@ class FirmwareValidationTests(unittest.TestCase):
                         'sha256': hashlib.sha256(self.image.read_bytes()).hexdigest()}],
         }
         self.manifest = self.root / f'openwrt-{self.profile_id}.manifest'
-        self.manifest.write_text('kmod-batman-adv - 1\nkmod-nft-bridge - 1\njidu6j11-board-data - 1\n')
+        self.manifest.write_text(''.join(f'{p} - 1\n' for p in self.packages))
         self.save_profiles()
 
     def save_profiles(self):
@@ -46,11 +52,10 @@ class FirmwareValidationTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, 'missing supported device'):
             self.verify()
 
-    def test_each_required_kmod_must_be_in_image(self):
-        for package in ['kmod-batman-adv', 'kmod-nft-bridge']:
+    def test_each_required_package_must_be_in_image(self):
+        for package in self.packages:
             with self.subTest(package=package):
-                self.manifest.write_text('\n'.join(f'{p} - 1' for p in
-                    ['kmod-batman-adv', 'kmod-nft-bridge', 'jidu6j11-board-data'] if p != package))
+                self.manifest.write_text('\n'.join(f'{p} - 1' for p in self.packages if p != package))
                 with self.assertRaisesRegex(ValueError, 'missing packages'):
                     self.verify()
 
@@ -68,6 +73,24 @@ class FirmwareValidationTests(unittest.TestCase):
     def test_missing_image_rejected(self):
         self.image.unlink()
         with self.assertRaises(FileNotFoundError):
+            self.verify()
+
+    def test_empty_image_rejected_even_with_matching_checksum(self):
+        self.image.write_bytes(b'')
+        self.profile['images'][0]['sha256'] = hashlib.sha256(b'').hexdigest()
+        self.save_profiles()
+        with self.assertRaisesRegex(ValueError, 'empty image'):
+            self.verify()
+
+    def test_duplicate_manifest_rejected(self):
+        (self.root / f'duplicate-{self.profile_id}.manifest').write_text(self.manifest.read_text())
+        with self.assertRaisesRegex(ValueError, 'exactly one per-device manifest'):
+            self.verify()
+
+    def test_wrong_sku_image_filename_rejected(self):
+        self.profile['images'][0]['name'] = self.name.replace('6111', '6411')
+        self.save_profiles()
+        with self.assertRaisesRegex(ValueError, 'unexpected image filename'):
             self.verify()
 
 

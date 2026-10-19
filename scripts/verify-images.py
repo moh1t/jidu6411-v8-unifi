@@ -5,6 +5,12 @@ import json
 from pathlib import Path
 import sys
 
+REQUIRED_PACKAGES = {
+    'kmod-batman-adv', 'kmod-nft-bridge', 'jidu6j11-board-data',
+    'kmod-ath11k', 'kmod-ath11k-ahb', 'kmod-ath11k-pci',
+    'ath11k-firmware-ipq9574', 'ath11k-firmware-qcn9074',
+}
+
 
 def verify(root, devices):
     profiles = json.loads((root / 'profiles.json').read_text())['profiles']
@@ -18,7 +24,7 @@ def verify(root, devices):
         if len(manifests) != 1:
             raise ValueError(f'{profile_id}: expected exactly one per-device manifest')
         packages = {line.split()[0] for line in manifests[0].read_text().splitlines() if line.strip()}
-        missing = {'kmod-batman-adv', 'kmod-nft-bridge', 'jidu6j11-board-data'} - packages
+        missing = REQUIRED_PACKAGES - packages
         if missing:
             raise ValueError(f'{profile_id}: missing packages: {sorted(missing)}')
         images = [item for item in profile['images'] if item['type'] == 'sysupgrade']

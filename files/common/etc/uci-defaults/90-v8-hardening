@@ -2,8 +2,7 @@
 # JIDU6J11 v8 (both variants): first-boot defaults.
 #  - LuCI is reachable over HTTPS only (http:// redirects to https://)
 #  - time zone Asia/Kolkata
-#  - the same default root password as the v1-v7 images, but ONLY if root has
-#    no password yet (a sysupgrade that keeps settings keeps the owner's one)
+# Root credentials follow OpenWrt defaults; never install a shared password.
 
 uci -q set uhttpd.main.redirect_https='1'
 uci -q commit uhttpd
@@ -13,10 +12,6 @@ if [ -z "$zone" ] || [ "$zone" = "UTC" ]; then
 	uci -q set system.@system[0].zonename='Asia/Kolkata'
 	uci -q set system.@system[0].timezone='IST-5:30'
 	uci -q commit system
-fi
-
-if grep -q '^root::' /etc/shadow; then
-	sed -i 's|^root::|root:$6$BUta6sRJzxlxRLzF$8csc.OWQjMniVGkNd8bPJJP7XK6jGRBm3C2rbVTXCZUNIxJJofmNpjDID.7ziH.STdU9ReXf5O693AUtGECiq1:|' /etc/shadow
 fi
 
 exit 0

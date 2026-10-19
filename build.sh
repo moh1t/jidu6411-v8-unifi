@@ -14,6 +14,7 @@ case "$DEVICE" in 6111|6411|both) ;; *) echo 'DEVICE must be 6111, 6411 or both'
 case "$CHECK_ONLY" in 0|1) ;; *) echo 'CHECK_ONLY must be 0 or 1' >&2; exit 1 ;; esac
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
+python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 11) else "Python 3.11 or newer is required")'
 REF="${OPENWRT_REF:-$(cat "$HERE/openwrt.pin")}"
 [[ "$REF" =~ ^[A-Za-z0-9][A-Za-z0-9._/-]*$ ]] || { echo 'Invalid OPENWRT_REF' >&2; exit 1; }
 WORK="${WORK:-$HERE/work-$DEVICE-$VARIANT}"
@@ -63,7 +64,7 @@ need() { grep -qxF "$1" .config || { echo "MISSING after defconfig: $1" >&2; exi
 for sku in $DEVICES; do
 	need "CONFIG_TARGET_DEVICE_qualcommbe_ipq95xx_DEVICE_jiorouter_ax6000-jidu6j11-$sku=y"
 done
-for pkg in kmod-batman-adv kmod-nft-bridge kmod-sched-act-police luci-ssl wpad-mbedtls jidu6j11-board-data ath11k-firmware-ipq9574 ath11k-firmware-qcn9074; do
+for pkg in kmod-batman-adv kmod-nft-bridge kmod-sched-act-police luci-ssl wpad-mbedtls kmod-ath11k kmod-ath11k-ahb kmod-ath11k-pci jidu6j11-board-data ath11k-firmware-ipq9574 ath11k-firmware-qcn9074; do
 	need "CONFIG_PACKAGE_$pkg=y"
 done
 if [ "$VARIANT" = unifi ]; then

@@ -1,4 +1,4 @@
-From 1ec4d880056ed76c4fe02a563c2cdd0b03637189 Mon Sep 17 00:00:00 2001
+From 15517fd5b00b2b2a11b10a37361aa5bcd7cf70e4 Mon Sep 17 00:00:00 2001
 From: Sandeep Sondagar <sandeepsondagar@gmail.com>
 Date: Fri, 7 Aug 2026 12:54:21 +0530
 Subject: [PATCH] ath11k-firmware: add IPQ9574 board data and firmware package
@@ -21,14 +21,20 @@ IPQ5018/QCN6122 firmware tree object is byte-identical at both
 revisions, so the ipq5018-qcn6122 package keeps shipping the same blobs;
 only the tarball name and PKG_RELEASE change.
 
+Fetch the legacy firmware directly from the official GitHub archive at
+the same full commit, with a verified SHA256, rather than hashing a
+host-generated zstd repack. The archive files were compared with the
+pinned Git checkout. Preserve the IPQ9574 2.11 firmware paths, upstream
+DTS alias and license files.
+
 Signed-off-by: Sandeep Sondagar <sandeepsondagar@gmail.com>
 (cherry picked from commit d40ac989d85a6ff29bafb02498031571984affa9)
 ---
- package/firmware/ath11k-firmware/Makefile | 53 +++++++++++++++++------
- 1 file changed, 40 insertions(+), 13 deletions(-)
+ package/firmware/ath11k-firmware/Makefile | 62 ++++++++++++++++-------
+ 1 file changed, 44 insertions(+), 18 deletions(-)
 
 diff --git a/package/firmware/ath11k-firmware/Makefile b/package/firmware/ath11k-firmware/Makefile
-index 32ec67e..3fcb295 100644
+index 32ec67ea..72319517 100644
 --- a/package/firmware/ath11k-firmware/Makefile
 +++ b/package/firmware/ath11k-firmware/Makefile
 @@ -11,7 +11,7 @@ PKG_NAME:=ath11k-firmware
@@ -36,11 +42,11 @@ index 32ec67e..3fcb295 100644
  PKG_SOURCE_VERSION:=15f050122da5ef5bef2cc8c7c19dfb7f98060a49
  PKG_MIRROR_HASH:=e7a89d1570f32552ade539376181494724b5eafb31d00451ff2dcf5a2922a0cb
 -PKG_RELEASE:=2
-+PKG_RELEASE:=3
++PKG_RELEASE:=4
  
  PKG_SOURCE_PROTO:=git
  PKG_SOURCE_URL:=https://git.codelinaro.org/clo/ath-firmware/ath11k-firmware.git
-@@ -26,22 +26,45 @@ RSTRIP:=:
+@@ -26,22 +26,43 @@ RSTRIP:=:
  STRIP:=:
  
  ATH11K_LEGACY_FW_NAME:=ath11k-legacy-firmware
@@ -49,19 +55,21 @@ index 32ec67e..3fcb295 100644
 +ATH11K_LEGACY_FW_DATE:=2024-06-19
 +ATH11K_LEGACY_FW_RELEASE:=d1491a6b
  ATH11K_LEGACY_FW_SUBDIR:=$(ATH11K_LEGACY_FW_NAME)-$(ATH11K_LEGACY_FW_DATE)~$(ATH11K_LEGACY_FW_RELEASE)
- ATH11K_LEGACY_FW_SOURCE=$(ATH11K_LEGACY_FW_SUBDIR).tar.zst
+-ATH11K_LEGACY_FW_SOURCE=$(ATH11K_LEGACY_FW_SUBDIR).tar.zst
 -ATH11K_IPQ9574_SUBDIR:=ath11k-firmware/IPQ9574/hw1.0/2.9.0.1/WLAN.HK.2.9.0.1-01890-QCAHKSWPL_SILICONZ-1
++ATH11K_LEGACY_FW_SOURCE=$(ATH11K_LEGACY_FW_SUBDIR).tar.gz
 +ATH11K_IPQ9574_SUBDIR:=ath11k-firmware/IPQ9574/hw1.0/2.11.0.1.1/WLAN.HK.2.11.0.1.1-00039-QCAHKSWPL_SILICONZ-1
  
  define Download/$(ATH11K_LEGACY_FW_NAME)
  	FILE:=$(ATH11K_LEGACY_FW_SOURCE)
- 	PROTO:=git
- 	URL:=https://github.com/quic/upstream-wifi-fw.git
+-	PROTO:=git
+-	URL:=https://github.com/quic/upstream-wifi-fw.git
 -	SOURCE_VERSION:=795809c7041582bd51bdfaa1f548b916ae8d4382
 -	MIRROR_HASH:=b55bf7204543c7ba87876e84788239b0e47ad62434c5b0d1169526cde36a9daa
-+	SOURCE_VERSION:=d1491a6b3b22bd6d755bb71ca06aec4246127726
-+	MIRROR_HASH:=8882fbb4bf492086c4c9391eb5011e1cccc1acc7c047fd7f83f4c0389e36650d
- 	SUBDIR:=$(ATH11K_LEGACY_FW_SUBDIR)
+-	SUBDIR:=$(ATH11K_LEGACY_FW_SUBDIR)
++	URL:=https://codeload.github.com/quic/upstream-wifi-fw/tar.gz
++	URL_FILE:=d1491a6b3b22bd6d755bb71ca06aec4246127726
++	HASH:=cb3d53afefde868b22815c366dfd34318fb00d2bb6fe48de64bc35e54244aacf
  endef
  $(eval $(call Download,$(ATH11K_LEGACY_FW_NAME)))
  
@@ -91,7 +99,7 @@ index 32ec67e..3fcb295 100644
  define Package/ath11k-firmware-default
    SECTION:=firmware
    CATEGORY:=Firmware
-@@ -71,13 +94,15 @@ define Build/Clean
+@@ -71,13 +92,16 @@ define Build/Clean
  	$(call Build/Clean/Default,)
  
  	rm -rf \
@@ -103,12 +111,14 @@ index 32ec67e..3fcb295 100644
  define Build/Prepare
  	$(call Build/Prepare/Default,)
  
- 	$(TAR) -C $(BUILD_DIR) -xf $(DL_DIR)/$(ATH11K_LEGACY_FW_SOURCE)
+-	$(TAR) -C $(BUILD_DIR) -xf $(DL_DIR)/$(ATH11K_LEGACY_FW_SOURCE)
++	$(INSTALL_DIR) $(BUILD_DIR)/$(ATH11K_LEGACY_FW_SUBDIR)
++	$(TAR) -C $(BUILD_DIR)/$(ATH11K_LEGACY_FW_SUBDIR) --strip-components=1 -xf $(DL_DIR)/$(ATH11K_LEGACY_FW_SOURCE)
 +	$(TAR) -C $(BUILD_DIR) -xf $(DL_DIR)/$(ATH11K_IPQ9574_FW_SOURCE)
  endef
  
  define Build/Compile
-@@ -103,13 +128,15 @@ define Package/ath11k-firmware-ipq6018/install
+@@ -103,13 +127,15 @@ define Package/ath11k-firmware-ipq6018/install
  endef
  
  define Package/ath11k-firmware-ipq9574/install

@@ -6,6 +6,45 @@ Build a standard OpenWrt router image for **JIDU6111** with
 Installing batman-adv does not configure a mesh: set up batman interfaces and
 bridges after flashing, for your own network.
 
+## Build locally
+
+Use an ordinary user on an x86-64 Linux machine. Ubuntu 24.04 is the reference
+host; Python **3.11 or newer** is required by the artifact verifier. Allow at
+least 60 GB of free disk space and 8 GB of RAM for a full build. Install the
+dependencies first (only this step needs sudo):
+
+```sh
+sudo apt-get update
+sudo apt-get install -y build-essential clang flex bison g++ gawk gcc-multilib \
+  g++-multilib gettext git libncurses-dev libssl-dev libelf-dev pkgconf \
+  python3-setuptools python3-dev rsync swig unzip zlib1g-dev file wget zstd
+git clone --branch firmware/jidu6111-snapshot https://github.com/moh1t/jidu6411-v8-unifi.git
+cd jidu6411-v8-unifi
+python3 -m unittest discover -s tests -v
+DEVICE=6111 VARIANT=stock JOBS=2 bash ./build.sh
+```
+
+The default uses `openwrt.pin`, the latest snapshot checked with this patch set.
+Set `OPENWRT_REF=main` to resolve upstream's latest commit instead; later changes
+can require another patch rebase. Output is `out/6111/stock/`. Verify it with:
+
+```sh
+(cd out/6111/stock && sha256sum -c SHA256SUMS)
+```
+
+Keep the work directory if a build fails: downloaded sources and compiled tools
+remain there. To retry compilation after resolving the reported error:
+
+```sh
+make -C work-6111-stock/openwrt -j2 BUILD_LOG=1
+python3 scripts/verify-images.py work-6111-stock/openwrt/bin/targets/qualcommbe/ipq95xx 6111
+```
+
+Those retry commands leave images in `work-6111-stock/openwrt/bin/targets/qualcommbe/ipq95xx/`;
+they do not regenerate the `out/` bundle. The full build script requires a fresh
+`WORK` directory and refuses to delete earlier work. Build logs are in
+`work-6111-stock/build.log` and `work-6111-stock/openwrt/logs/`.
+
 ## Build with GitHub Actions
 
 1. Open **Actions → Build JIDU6J11 snapshot → Run workflow** in your copy of this repository.
@@ -23,8 +62,7 @@ them. Use the installation/recovery procedure appropriate to your router's
 current firmware and unlock state. A successful compile does not validate
 on-device Wi-Fi, flash layout, or sysupgrade from your currently installed image.
 
-Pushing a branch named `firmware/**` also starts a full JIDU6111 stock build
-from latest upstream `main`; other branch pushes do not start firmware builds.
+The workflow is **manual-only**. Pushing commits does not start a firmware build.
 
 The workflow rejects a missing device profile, missing required packages,
 missing sysupgrade image, or a checksum mismatch. Artifacts retain OpenWrt's
@@ -60,14 +98,17 @@ AHB changes. This is latest OpenWrt with a deliberately pinned hardware-support
 stack, not an assertion that the newest upstream wireless stack works on this
 router. New upstream wireless patches overlapping that frozen stack are removed
 by the compatibility patch. Artifact checksums and source hashes remain enabled.
+The legacy Wi-Fi firmware is downloaded as the official archive at commit
+`d1491a6b3b22bd6d755bb71ca06aec4246127726`, verified before extraction. It is
+not repacked locally with a host-dependent compression tool.
 Official GitHub feed mirrors are pinned in `feeds.conf`; only packages needed by
 the selected variant and their dependencies are installed to avoid unrelated
 feed Kconfig cycles.
 
-The inherited image defaults include country `PA`, Asia/Kolkata timezone,
-HTTP-to-HTTPS LuCI redirection, and the v8 root-password default on first boot.
-Set the wireless country to your actual location and change the root password
-before putting a newly installed router into service. Stock uses OpenWrt's
+The image keeps country **`PA`** as requested, Asia/Kolkata timezone, and
+HTTP-to-HTTPS LuCI redirection. It does **not** install the inherited shared root
+password. On a clean installation, set your own password through LuCI or `passwd`;
+a settings-preserving sysupgrade retains your existing credentials. Stock uses OpenWrt's
 router network defaults; it does not apply the UniFi/AP conversion overlay.
 
 ## Local configuration check
@@ -85,3 +126,18 @@ This uses `openwrt.pin`. Set `OPENWRT_REF=main` to check current upstream instea
 
 Configuration checks are not firmware compilation. Hardware operation still
 requires testing on an unlocked JIDU6111 with a known recovery method.
+
+## Validation status
+
+The patch series, wireless backports patches, JIDU6111 configuration, host
+prerequisites and artifact-verifier tests have been checked. The firmware
+installation recipes were exercised with the pinned runtime firmware and the
+bundled board-data overlay. The generic board-data download and other CodeLinaro
+sources could not be fetched in the restricted review environment; their pinned
+revisions and checksum checks remain in place.
+
+**A complete firmware build and on-device validation are still required before
+calling this production-ready.** The cancelled GitHub run is not a successful
+build. After compiling, validate the 6111 image and test boot, both radios,
+Ethernet port mapping, DHCP/DNS, WAN routing, firewall behavior, batman-adv and
+nft bridge operation, reboot persistence and recovery on the actual router.
