@@ -1,0 +1,106 @@
+From e016960e1050345864d7490e874b7742f2a3bebe Mon Sep 17 00:00:00 2001
+From: v8-build <v8@build>
+Date: Mon, 19 Oct 2026 10:21:54 +0000
+Subject: [PATCH] ath11k-firmware: use bundled JIDU board data
+
+JIDU images already require jidu6j11-board-data, whose install overlay
+supplies both radio board files. Remove the unused generic IPQ9574 board
+archive download and extraction. Its uncached mirror artifact forces a
+local repack that does not match the inherited checksum. Keep runtime
+firmware, its verified source hash, and the device board files
+unchanged.
+---
+ package/firmware/ath11k-firmware/Makefile     | 33 +++----------------
+ package/firmware/jidu6j11-board-data/Makefile |  4 +--
+ 2 files changed, 6 insertions(+), 31 deletions(-)
+
+diff --git a/package/firmware/ath11k-firmware/Makefile b/package/firmware/ath11k-firmware/Makefile
+index 7231951..d426bd7 100644
+--- a/package/firmware/ath11k-firmware/Makefile
++++ b/package/firmware/ath11k-firmware/Makefile
+@@ -11,7 +11,7 @@ PKG_NAME:=ath11k-firmware
+ PKG_SOURCE_DATE:=2024-10-14
+ PKG_SOURCE_VERSION:=15f050122da5ef5bef2cc8c7c19dfb7f98060a49
+ PKG_MIRROR_HASH:=e7a89d1570f32552ade539376181494724b5eafb31d00451ff2dcf5a2922a0cb
+-PKG_RELEASE:=4
++PKG_RELEASE:=5
+ 
+ PKG_SOURCE_PROTO:=git
+ PKG_SOURCE_URL:=https://git.codelinaro.org/clo/ath-firmware/ath11k-firmware.git
+@@ -40,28 +40,8 @@ define Download/$(ATH11K_LEGACY_FW_NAME)
+ endef
+ $(eval $(call Download,$(ATH11K_LEGACY_FW_NAME)))
+ 
+-# IPQ9574 is not yet present in the linux-firmware distribution. Its runtime
+-# firmware blobs (m3_fw/q6_fw) ship only in the quic upstream-wifi-fw legacy
+-# release, while board-2.bin was added to the codelinaro ath11k-firmware repo
+-# only in a revision newer than the shared PKG_SOURCE_VERSION used by the
+-# other packages. Fetch board-2.bin from the source that carries it instead
+-# of bumping the shared PKG_SOURCE_VERSION, which would also change the
+-# IPQ6018 firmware shipped by the other packages.
+-ATH11K_IPQ9574_FW_NAME:=ath11k-firmware-ipq9574-board
+-ATH11K_IPQ9574_FW_DATE:=2026-03-24
+-ATH11K_IPQ9574_FW_RELEASE:=2044a5b7
+-ATH11K_IPQ9574_FW_SUBDIR:=$(ATH11K_IPQ9574_FW_NAME)-$(ATH11K_IPQ9574_FW_DATE)~$(ATH11K_IPQ9574_FW_RELEASE)
+-ATH11K_IPQ9574_FW_SOURCE=$(ATH11K_IPQ9574_FW_SUBDIR).tar.zst
+-
+-define Download/$(ATH11K_IPQ9574_FW_NAME)
+-	FILE:=$(ATH11K_IPQ9574_FW_SOURCE)
+-	PROTO:=git
+-	URL:=$(PKG_SOURCE_URL)
+-	SOURCE_VERSION:=2044a5b7e0da88a34c728a62e7f262b67c141739
+-	MIRROR_HASH:=24b32f8ed38b640f40bac2860dd742dd5e5f3dc8bf7e655a7a41bdcbd94b1423
+-	SUBDIR:=$(ATH11K_IPQ9574_FW_SUBDIR)
+-endef
+-$(eval $(call Download,$(ATH11K_IPQ9574_FW_NAME)))
++# JIDU images obtain both radio board files from jidu6j11-board-data.
++# Do not fetch a generic IPQ9574 board file that the device overlay replaces.
+ 
+ define Package/ath11k-firmware-default
+   SECTION:=firmware
+@@ -92,8 +72,7 @@ define Build/Clean
+ 	$(call Build/Clean/Default,)
+ 
+ 	rm -rf \
+-		$(BUILD_DIR)/$(ATH11K_LEGACY_FW_SUBDIR) \
+-		$(BUILD_DIR)/$(ATH11K_IPQ9574_FW_SUBDIR)
++		$(BUILD_DIR)/$(ATH11K_LEGACY_FW_SUBDIR)
+ endef
+ 
+ define Build/Prepare
+@@ -101,7 +80,6 @@ define Build/Prepare
+ 
+ 	$(INSTALL_DIR) $(BUILD_DIR)/$(ATH11K_LEGACY_FW_SUBDIR)
+ 	$(TAR) -C $(BUILD_DIR)/$(ATH11K_LEGACY_FW_SUBDIR) --strip-components=1 -xf $(DL_DIR)/$(ATH11K_LEGACY_FW_SOURCE)
+-	$(TAR) -C $(BUILD_DIR) -xf $(DL_DIR)/$(ATH11K_IPQ9574_FW_SOURCE)
+ endef
+ 
+ define Build/Compile
+@@ -131,9 +109,6 @@ define Package/ath11k-firmware-ipq9574/install
+ 	$(INSTALL_DATA) \
+ 		$(BUILD_DIR)/$(ATH11K_LEGACY_FW_SUBDIR)/$(ATH11K_IPQ9574_SUBDIR)/*.* \
+ 		$(1)/lib/firmware/ath11k/IPQ9574/hw1.0/
+-	$(INSTALL_DATA) \
+-		$(BUILD_DIR)/$(ATH11K_IPQ9574_FW_SUBDIR)/IPQ9574/hw1.0/board-2.bin \
+-		$(1)/lib/firmware/ath11k/IPQ9574/hw1.0/
+ 	# Keep the upstream DTS firmware paths on the same firmware version.
+ 	$(LN) ath11k/IPQ9574/hw1.0 $(1)/lib/firmware/IPQ9574
+ 	$(INSTALL_DIR) $(1)/usr/share/licenses/ath11k-firmware-ipq9574
+diff --git a/package/firmware/jidu6j11-board-data/Makefile b/package/firmware/jidu6j11-board-data/Makefile
+index 47c61d5..657ab9f 100644
+--- a/package/firmware/jidu6j11-board-data/Makefile
++++ b/package/firmware/jidu6j11-board-data/Makefile
+@@ -23,8 +23,8 @@ endef
+ define Build/Compile
+ endef
+ 
+-# install-overlay (as the ipq-wifi-* packages do): these files replace the
+-# generic board-2.bin shipped by ath11k-firmware-ipq9574 / -qcn9074.
++# Install the IPQ9574 board file and replace the generic QCN9074 board file
++# using the same install-overlay mechanism as the ipq-wifi-* packages.
+ define Package/jidu6j11-board-data/install-overlay
+ 	$(INSTALL_DIR) $(1)/lib/firmware/ath11k/IPQ9574/hw1.0 $(1)/lib/firmware/ath11k/QCN9074/hw1.0
+ 	$(INSTALL_DATA) $(CURDIR)/files/board-2.IPQ9574.bin $(1)/lib/firmware/ath11k/IPQ9574/hw1.0/board-2.bin
+-- 
+2.52.0
+

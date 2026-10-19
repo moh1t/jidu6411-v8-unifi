@@ -15,6 +15,11 @@ uses a checksum-verified official archive for legacy firmware, keeps per-package
 build logs and validates required driver/firmware packages in each image.
 The inherited shared root-password hash has been removed.
 
+Patch 0007 removes the redundant generic IPQ9574 board-data download whose
+repacked archive failed its checksum. Both JIDU board files are supplied by the
+required local board-data package. README.md documents applying this fix to an
+existing build tree without discarding downloads or bypassing checksums.
+
 Configuration and package checks are not a complete firmware compile or a
 hardware test. Do not describe the firmware as production-ready until the
 full build and JIDU6111 acceptance checks in README.md have passed. Preserve

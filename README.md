@@ -61,6 +61,30 @@ they do not regenerate the `out/` bundle. The full build script requires a fresh
 `WORK` directory and refuses to delete earlier work. Build logs are in
 `work-6111-stock/build.log` and `work-6111-stock/openwrt/logs/`.
 
+If an existing build stops on a checksum mismatch for
+`ath11k-firmware-ipq9574-board-2026-03-24~2044a5b7.tar.zst`, apply patch 0007
+once to that build tree. The generic board file is redundant: the required
+`jidu6j11-board-data` package already installs the JIDU-specific board file.
+From this repository directory, after obtaining the fix:
+
+```sh
+(
+  set -e
+  tree="$PWD/work-6111-stock/openwrt"
+  fix="$PWD/patches/0007-ath11k-firmware-use-bundled-jidu-board-data.patch"
+  git -C "$tree" apply --check "$fix"
+  git -C "$tree" apply "$fix"
+  sha256sum "$fix" >> work-6111-stock/build-provenance.txt
+  make -C "$tree" package/firmware/ath11k-firmware/download -j1 V=s
+  make -C "$tree" download -j2 || make -C "$tree" download -j1 V=s
+  make -C "$tree" -j2 BUILD_LOG=1 || make -C "$tree" -j1 V=s BUILD_LOG=1
+  python3 scripts/verify-images.py "$tree/bin/targets/qualcommbe/ipq95xx" 6111
+)
+```
+
+This keeps existing downloads and build output; it does not regenerate `out/`.
+Fresh builds apply patch 0007 automatically. Keep checksum verification enabled.
+
 ## Build with GitHub Actions
 
 1. Open **Actions → Build JIDU6J11 snapshot → Run workflow** in your copy of this repository.
@@ -106,9 +130,12 @@ builds his `JIDU6J11` branch; that is distinct from latest upstream `main`.
 His [board firmware repository](https://github.com/Sandiep/firmware_qca-wireless/tree/JIDU6J11)
 is another hardware-support reference.
 
-The five hardware patches here have been rebased onto the pinned upstream revision.
-A sixth patch fixes a redundant boolean kernel dependency that otherwise causes
-a false dnsmasq-full Kconfig cycle on this snapshot.
+The hardware patches here have been rebased onto the pinned upstream revision.
+Patch 0006 fixes a redundant boolean kernel dependency that otherwise causes
+a false dnsmasq-full Kconfig cycle on this snapshot. Patch 0007 removes the
+redundant generic IPQ9574 board-data download; both device-specific board files
+come from the bundled `jidu6j11-board-data` package, which is required in the
+configuration and checked in each image's package manifest.
 They retain the v8 board data and **mac80211 backports 6.18.39** with its IPQ9574
 AHB changes. This is latest OpenWrt with a deliberately pinned hardware-support
 stack, not an assertion that the newest upstream wireless stack works on this
@@ -149,9 +176,10 @@ requires testing on an unlocked JIDU6111 with a known recovery method.
 The patch series, wireless backports patches, JIDU6111 configuration, host
 prerequisites and artifact-verifier tests have been checked. The firmware
 installation recipes were exercised with the pinned runtime firmware and the
-bundled board-data overlay. The generic board-data download and other CodeLinaro
-sources could not be fetched in the restricted review environment; their pinned
-revisions and checksum checks remain in place.
+bundled board-data overlay. Removing the generic board archive produces the
+same 30 installed firmware files/symlinks, including both JIDU board files.
+The remaining shared CodeLinaro source could not be fetched in the restricted
+review environment; its pinned revision and checksum checks remain in place.
 
 **A complete firmware build and on-device validation are still required before
 calling this production-ready.** The cancelled GitHub run is not a successful
